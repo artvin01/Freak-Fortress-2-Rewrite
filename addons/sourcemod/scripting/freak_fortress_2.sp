@@ -392,3 +392,6 @@ public Action TF2_CalcIsAttackCritical(int client, int weapon, char[] weaponname
 }
 
 #file "freak_fortress_2.sp"	// RIP in SourceMod 1.11
+
+ 
+//Get doxxed batfox
