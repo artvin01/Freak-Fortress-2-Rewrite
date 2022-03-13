@@ -78,7 +78,9 @@ public Action SDKHook_TakeDamage(int victim, int &attacker, int &inflictor, floa
 	if(OTDLoaded)
 		return Plugin_Continue;
 	
-	CritType crit = (damagetype & DMG_CRIT) ? CritType_Crit : CritType_None;
+	CritType crit = (damagetype & DMG_CRIT) ? CritType_Crit : CritType_None; 	//Note for batfox: remove this note once done as you didnt do it in 3 weeks+ and its heavy,
+																			 	//any crits do not work at all from bosses to bosses, probably more as i cant crit players either as a player
+																			 	//Maybe caused by this but look into it asap its getting annoying.
 	return TF2_OnTakeDamage(victim, attacker, inflictor, damage, damagetype, weapon, damageForce, damagePosition, damagecustom, crit);
 }
 
