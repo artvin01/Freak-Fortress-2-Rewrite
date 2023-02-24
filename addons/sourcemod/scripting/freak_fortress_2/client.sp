@@ -686,6 +686,20 @@ methodmap Client
 		}
 	}
 	
+	property bool IgnoreTakeDamage
+	{
+		public get()
+		{
+			bool value = false;
+			this.Cfg.GetBool("ignoretakedamage", value);
+			return value;
+		}
+		public set(bool value)
+		{
+			this.Cfg.SetInt("ignoretakedamage", value ? 1 : 0);
+		}
+	}
+	
 	public float GetCharge(int slot)
 	{
 		char buffer[8];

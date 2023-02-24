@@ -135,7 +135,7 @@ void SDKCall_FinishLagCompensation(int client)
 	{
 		Address value = DHook_GetLagCompensationManager();
 		if(!value)
-			ThrowError("Trying to finish lag compensation before any existed");
+			return;//ThrowError("Trying to finish lag compensation before any existed");
 		
 		SDKCall(SDKFinishLagCompensation, value, client);
 	}
@@ -175,7 +175,7 @@ void SDKCall_StartLagCompensation(int client)
 	{
 		Address value = DHook_GetLagCompensationManager();
 		if(!value)
-			ThrowError("Trying to start lag compensation before any existed");
+			return;//ThrowError("Trying to start lag compensation before any existed");
 		
 		SDKCall(SDKStartLagCompensation, value, client, GetEntityAddress(client) + SDKGetCurrentCommand);
 	}

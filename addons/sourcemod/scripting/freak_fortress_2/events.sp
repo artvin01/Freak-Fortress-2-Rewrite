@@ -733,17 +733,17 @@ public void Events_RPSTaunt(Event event, const char[] name, bool dontBroadcast)
 		if(GetClientTeam(victim) != GetClientTeam(attacker))
 		{
 			Client(victim).RPSHit = attacker;
-			if(Client(victim).MaxLives > 1)
+			if(Client(attacker).IsBoss || Client(victim).MaxLives > 1)
 			{
 				Client(victim).RPSDamage = GetClientHealth(victim);
 			}
 			else if(!Client(victim).RPSDamage)
 			{
 				int damage = Client(victim).Health / 2;
-				if(damage < 999)
-					damage = 999;
+				if(damage < 998)
+					damage = 998;
 				
-				Client(victim).RPSDamage = damage;
+				Client(victim).RPSDamage = damage + 1;
 			}
 		}
 	}

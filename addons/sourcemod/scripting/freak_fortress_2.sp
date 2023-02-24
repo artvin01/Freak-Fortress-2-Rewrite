@@ -254,7 +254,7 @@ public Plugin myinfo =
 {
 	name		=	"Freak Fortress 2: Rewrite",
 	author		=	"Batfoxkid based on the original done by many others",
-	description	=	"It's like Christmas Morning",
+	description	=	"It's like Christmas Morning!",
 	version		=	PLUGIN_VERSION ... "." ... PLUGIN_VERSION_REVISION,
 	url			=	"https://forums.alliedmods.net/forumdisplay.php?f=154"
 }

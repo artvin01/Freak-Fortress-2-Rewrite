@@ -243,7 +243,8 @@ public any NativeOld_SetBossHealth(Handle plugin, int params)
 		Client(client).Health = newHealth;
 		
 		Bosses_SetSpeed(client);
-		Gamemode_UpdateHUD(GetClientTeam(client), newHealth > lastHealth);
+		if(Cvar[RefreshDmg].BoolValue)
+			Gamemode_UpdateHUD(GetClientTeam(client), newHealth > lastHealth);
 	}
 	
 	return 0;
@@ -269,7 +270,8 @@ public any NativeOld_SetBossMaxHealth(Handle plugin, int params)
 		
 		Bosses_UpdateHealth(client);
 		Bosses_SetSpeed(client);
-		Gamemode_UpdateHUD(GetClientTeam(client), (newHealth > lastHealth && Client(client).Lives > 1));
+		if(Cvar[RefreshDmg].BoolValue)
+			Gamemode_UpdateHUD(GetClientTeam(client), (newHealth > lastHealth && Client(client).Lives > 1));
 	}
 	
 	return 0;
@@ -295,7 +297,8 @@ public any NativeOld_SetBossLives(Handle plugin, int params)
 		Client(client).Lives = newLives;
 		
 		Bosses_SetSpeed(client);
-		Gamemode_UpdateHUD(GetClientTeam(client), newLives > lastLives);
+		if(Cvar[RefreshDmg].BoolValue)
+			Gamemode_UpdateHUD(GetClientTeam(client), newLives > lastLives);
 	}
 	
 	return 0;
@@ -318,7 +321,8 @@ public any NativeOld_SetBossMaxLives(Handle plugin, int params)
 		Client(client).MaxLives = GetNativeCell(2);
 		
 		Bosses_SetSpeed(client);
-		Gamemode_UpdateHUD(GetClientTeam(client));
+		if(Cvar[RefreshDmg].BoolValue)
+			Gamemode_UpdateHUD(GetClientTeam(client));
 	}
 	
 	return 0;

@@ -153,6 +153,11 @@
 				"linux"		"158"
 				"windows"	"157"
 			}
+			"CTFPlayer::GetSceneSoundToken"
+			{
+				"linux"		"375"
+				"windows"	"374"
+			}
 			"CTFWeaponBase::ApplyPostHitEffects"
 			{
 				"linux"		"424"
@@ -362,6 +367,20 @@
 					}
 				}
 			}
+			"CTFPlayer::DeathSound"
+			{
+				"offset"	"CTFPlayer::DeathSound
+				"hooktype"	"entity"
+				"return"	"void"
+				"this"		"entity"
+				"arguments"
+				{
+					"info"
+					{
+						"type"	"objectptr"
+					}
+				}
+			}
 			"CTFPlayer::DropAmmoPack"
 			{
 				"signature"	"CTFPlayer::DropAmmoPack"
@@ -383,6 +402,13 @@
 						"type"	"bool"
 					}
 				}
+			}
+			"CTFPlayer::GetSceneSoundToken"
+			{
+				"offset"	"CTFPlayer::GetSceneSoundToken
+				"hooktype"	"entity"
+				"return"	"charptr"
+				"this"		"entity"
 			}
 			"CTFPlayer::PickupWeaponFromOther"
 			{

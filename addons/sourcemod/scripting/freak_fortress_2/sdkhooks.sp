@@ -112,7 +112,11 @@ public Action TF2_OnTakeDamage(int victim, int &attacker, int &inflictor, float 
 {
 	if(Client(victim).IsBoss)
 	{
-		if(!attacker)
+		if(Client(victim).IgnoreTakeDamage)
+		{
+			
+		}
+		else if(!attacker)
 		{
 			if(damagetype & DMG_FALL)
 			{
@@ -426,7 +430,7 @@ public Action TF2_OnTakeDamage(int victim, int &attacker, int &inflictor, float 
 
 public void SDKHook_TakeDamagePost(int victim, int attacker, int inflictor, float damage, int damagetype, int weapon, const float damageForce[3], const float damagePosition[3], int damagecustom)
 {
-	if(Client(victim).IsBoss)
+	if(Client(victim).IsBoss && !Client(victim).IgnoreTakeDamage)
 	{
 		if(victim != attacker && attacker > 0 && attacker <= MaxClients && !IsInvuln(victim) && !Client(attacker).IsBoss)
 			Attributes_OnHitBoss(attacker, victim, inflictor, damage, weapon, damagecustom);

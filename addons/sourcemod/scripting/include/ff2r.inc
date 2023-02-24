@@ -748,6 +748,19 @@ methodmap BossData < ConfigData
 			this.SetFloat("ragedebuff", value);
 		}
 	}
+
+	// If to not use boss effects of OnTakeDamage (such as backstabs, custom logic, etc.)
+	property bool IgnoreTakeDamage
+	{
+		public get()
+		{
+			return this.GetBool("ignoretakedamage");
+		}
+		public set(bool value)
+		{
+			this.SetBool("ignoretakedamage", value);
+		}
+	}
 }
 
 /**

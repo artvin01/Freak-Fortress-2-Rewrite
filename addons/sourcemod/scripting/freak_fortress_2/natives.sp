@@ -208,7 +208,9 @@ public any Native_UpdateBossAttributes(Handle plugin, int params)
 	
 	Bosses_UpdateHealth(client);
 	Bosses_SetSpeed(client);
-	Gamemode_UpdateHUD(GetClientTeam(client));
+	if(Cvar[RefreshDmg].BoolValue)
+		Gamemode_UpdateHUD(GetClientTeam(client));
+	
 	return 0;
 }
 
