@@ -5,20 +5,14 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-enum FF2FilterSearch 
-{
-	FF2FilterSearch_Boss,
-	FF2FilterSearch_Minion
-}
-
 void Command_PluginStart()
 {
-	AddMultiTargetFilter("@hale", FF2TargetFilter, "all current bosses", false);
-	AddMultiTargetFilter("@!hale", FF2TargetFilter, "all current non-boss players", false);
-	AddMultiTargetFilter("@boss", FF2TargetFilter, "all current bosses", false);
-	AddMultiTargetFilter("@!boss", FF2TargetFilter, "all current non-boss players", false);
-	AddMultiTargetFilter("@minion", FF2TargetFilter, "all current minion players", false);
-	AddMultiTargetFilter("@!minion", FF2TargetFilter, "all current non-minion players", false);
+	AddMultiTargetFilter("@hale", Command_TargetFilter, "all current bosses", false);
+	AddMultiTargetFilter("@!hale", Command_TargetFilter, "all current non-boss players", false);
+	AddMultiTargetFilter("@boss", Command_TargetFilter, "all current bosses", false);
+	AddMultiTargetFilter("@!boss", Command_TargetFilter, "all current non-boss players", false);
+	AddMultiTargetFilter("@minion", Command_TargetFilter, "all current minion players", false);
+	AddMultiTargetFilter("@!minion", Command_TargetFilter, "all current non-minion players", false);
 
 	AddCommandListener(Command_Voicemenu, "voicemenu");
 	AddCommandListener(Command_KermitSewerSlide, "explode");
@@ -30,47 +24,44 @@ void Command_PluginStart()
 	AddCommandListener(Command_EurekaTeleport, "eureka_teleport");
 }
 
-public bool FF2TargetFilter(const char[] pattern, ArrayList clients)
+public bool Command_TargetFilter(const char[] pattern, ArrayList clients)
 {
-	FF2FilterSearch filterSearch = StrContains(pattern, "minion", true) != -1 ? FF2FilterSearch_Minion : FF2FilterSearch_Boss;
+	bool minionSearch = StrContains(pattern, "minion", true) != -1;
 	bool isOppositeFilter = pattern[1] == '!';
 
-	switch(filterSearch)
+	if(minionSearch)
 	{
-		case FF2FilterSearch_Boss:
+		for(int client = 1; client <= MaxClients; client++)
 		{
-			for(int client = 1; client <= MaxClients; client++)
+			if(!IsClientInGame(client))
+				continue;
+			
+			if(Client(client).Minion)
 			{
-				if(!IsClientInGame(client))
-					continue;
-
-				if(Client(client).IsBoss)
-				{
-					if(!isOppositeFilter)
-						clients.Push(client);
-				}
-				else if(isOppositeFilter)
-				{
+				if(!isOppositeFilter)
 					clients.Push(client);
-				}
+			}
+			else if(isOppositeFilter)
+			{
+				clients.Push(client);
 			}
 		}
-		case FF2FilterSearch_Minion:
+	}
+	else
+	{
+		for(int client = 1; client <= MaxClients; client++)
 		{
-			for(int client = 1; client <= MaxClients; client++)
+			if(!IsClientInGame(client))
+				continue;
+			
+			if(Client(client).IsBoss)
 			{
-				if(!IsClientInGame(client))
-					continue;
-
-				if(Client(client).Minion)
-				{
-					if(!isOppositeFilter)
-						clients.Push(client);
-				}
-				else if(isOppositeFilter)
-				{
+				if(!isOppositeFilter)
 					clients.Push(client);
-				}
+			}
+			else if(isOppositeFilter)
+			{
+				clients.Push(client);
 			}
 		}
 	}

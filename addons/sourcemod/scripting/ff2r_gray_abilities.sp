@@ -1,22 +1,35 @@
 /*
+	"rage_condition"
+	{
+		"slot"			"0"		// Ability slot
+
+		"cond"			"33"	// Condition index
+		"duration"		"-1.0"	// Duration, -1.0 for infinite
+		
+		"plugin_name"	"ff2r_gray_abilities"
+	}
+
+
 	"rage_summon"
 	{
-		"slot"		"0"	// Ability slot
+		"slot"			"0"	// Ability slot
 
-		"amount"	"3"	// Amount of bosses to summon
-		"bossdeath"	"1"	// Reaction on owner's death, 0 = Nothing, 1 = MvM Gate Stun, 2 = MvM Gate Bonk Stun, 3 = Death
-
-		"character"	"graymann/scoutgiant"	// Character filename or 
+		"amount"		"3"	// Amount of bosses to summon
+		"bossdeath"		"2"	// Reaction on owner's death, 0 = Nothing, 1 = MvM Gate Stun, 2 = MvM Gate Bonk Stun, 3 = Death
+		
+		"character"		"graymann/scoutgiant"	// Character filename or 
 		"character"							// a copy of boss config (similar to rage_cloneattack)
 		{
-			"name"	"Giant Scout"
+			"name"		"Giant Scout"
 		}
+		
+		"plugin_name"	"ff2r_gray_abilities"
 	}
 
 
 	"rage_reaction"
 	{
-		"slot"		"0"	// Ability slot
+		"slot"					"0"	// Ability slot
 
 		"enemyplayer"			"MP_CONCEPT_MVM_SENTRY_BUSTER"			// Enemy player reaction (SpeakResponseConcept)
 		"enemyannouncer"		"sound_reaction_sentrybuster"			// Enemy team's announcer (Boss Sound)
@@ -25,6 +38,54 @@
 		"allyplayer"			""	// Ally player reaction (SpeakResponseConcept)
 		"allyannouncer"			""	// Ally team's announcer (Boss Sound)
 		"allyannounceragain"	""	// Ally team's announcer repeated (Boss Sound)
+		
+		"plugin_name"			"ff2r_gray_abilities"
+	}
+
+
+	"special_spawn_ability"
+	{
+		"low"			"11"	// ALowest ability slot to activate on upon respawning
+		"high"			"11"	// ALowest ability slot to activate on upon respawning
+		
+		"plugin_name"	"ff2r_gray_abilities"
+	}
+
+
+	"special_passive_respawns"
+	{
+		"enemy"			"false"	// Spawn on the enemy team instead
+
+		"modes"
+		{
+			// Different modes, if more than one exists, adds a reload cycle ability
+			"0"
+			{
+				// Display name
+				"name"		"Summoning: Offensive"
+				"name_en"	"Summoning: Offensive"
+
+				// Description
+				"desc"		"Scout, Soldier, Pyro"
+				"desc_en"	"Scout, Soldier, Pyro"
+
+				"summons"
+				{
+					// Random summon pool
+					"0"
+					{
+						"amount"		"5"	// Amount of bosses to summon
+						"bossdeath"		"2"	// Reaction on owner's death, 0 = Nothing, 1 = MvM Gate Stun, 2 = MvM Gate Bonk Stun, 3 = Death
+
+						"character"		"graymann/scoutbot"	// Character filename or 
+						"character"							// a copy of boss config (similar to rage_cloneattack)
+						{
+							"name"		"Scout"
+						}
+					}
+				}
+			}
+		}
 		
 		"plugin_name"	"ff2r_gray_abilities"
 	}
@@ -40,9 +101,15 @@
 		
 		"plugin_name"	"ff2r_gray_abilities"
 	}
-*/
 
-//MP_CONCEPT_MVM_GIANT_CALLOUT
+
+	"special_summon_bomb"
+	{
+		"time"			"n*10 + 60"	// Boss lifetime until a bomb to spawns for the next summon
+		
+		"plugin_name"	"ff2r_gray_abilities"
+	}
+*/
 
 #include <sourcemod>
 #include <sdkhooks>
@@ -109,6 +176,12 @@ bool TakeDamageHooked[MAXTF2PLAYERS];
 int DeathSoundHookPre[MAXTF2PLAYERS];
 int DeathSoundHookPost[MAXTF2PLAYERS];
 bool RobotGiant[MAXTF2PLAYERS];
+
+int MinionLastTeam[MAXTF2PLAYERS] = {-1, ...};
+int MinionOwner[MAXTF2PLAYERS];
+int MinionDeathType[MAXTF2PLAYERS];
+bool MinionIdle[MAXTF2PLAYERS];
+bool MinionBlacklist[MAXTF2PLAYERS];
 
 public Plugin myinfo =
 {
@@ -183,7 +256,7 @@ public void OnPluginStart()
 	
 	SyncHud = CreateHudSynchronizer();
 	
-	//HookEvent("player_death", OnPlayerDeath, EventHookMode_Post);
+	HookEvent("player_death", OnPlayerDeath, EventHookMode_Post);
 	//HookEvent("object_deflected", OnObjectDeflected, EventHookMode_Post);
 	//HookEvent("teamplay_round_win", OnRoundEnd, EventHookMode_PostNoCopy);
 	
@@ -321,61 +394,164 @@ public void FF2R_OnBossEquipped(int client, bool weapons)
 
 public void FF2R_OnAbility(int client, const char[] ability, AbilityData cfg)
 {
-	if(!StrContains(ability, "rage_reaction", false))
+	if(!StrContains(ability, "rage_condition", false))
 	{
-		char reactionEnemy[64], reactionAlly[64], announcerEnemy[64], announcerAlly[64];
-		cfg.GetString("enemyplayer", reactionEnemy, sizeof(reactionEnemy));
-		cfg.GetString("allyplayer", reactionAlly, sizeof(reactionAlly));
-		cfg.GetString("enemyannouncer", announcerEnemy, sizeof(announcerEnemy));
-		cfg.GetString("allyannouncer", announcerAlly, sizeof(announcerAlly));
+		TF2_AddCondition(client, view_as<TFCond>(cfg.GetInt("condition")), cfg.GetFloat("duration", -1.0));
+	}
+	else if(!StrContains(ability, "rage_reaction", false))
+	{
+		Rage_Reaction(client, cfg);
+	}
+	else if(!StrContains(ability, "rage_summon", false))
+	{
+		Rage_Summon(client, cfg);
+	}
+}
 
-		if(cfg.GetInt("_useagain"))
-		{
-			cfg.GetString("enemyannounceragain", announcerEnemy, sizeof(announcerEnemy), announcerEnemy);
-			cfg.GetString("allyannounceragain", announcerAlly, sizeof(announcerAlly), announcerAlly);
-		}
-		else
-		{
-			cfg.SetInt("_useagain", 1);
-		}
+void Rage_Reaction(int client, AbilityData cfg)
+{
+	char reactionEnemy[64], reactionAlly[64], announcerEnemy[64], announcerAlly[64];
+	cfg.GetString("enemyplayer", reactionEnemy, sizeof(reactionEnemy));
+	cfg.GetString("allyplayer", reactionAlly, sizeof(reactionAlly));
+	cfg.GetString("enemyannouncer", announcerEnemy, sizeof(announcerEnemy));
+	cfg.GetString("allyannouncer", announcerAlly, sizeof(announcerAlly));
 
-		int team = GetClientTeam(client);
+	if(cfg.GetInt("_useagain"))
+	{
+		cfg.GetString("enemyannounceragain", announcerEnemy, sizeof(announcerEnemy), announcerEnemy);
+		cfg.GetString("allyannounceragain", announcerAlly, sizeof(announcerAlly), announcerAlly);
+	}
+	else
+	{
+		cfg.SetInt("_useagain", 1);
+	}
 
-		int[] enemies = new int[MaxClients];
-		int[] allies = new int[MaxClients];
-		int enemyCount, allyCount;
-		for(int target = 1; target <= MaxClients; target++)
+	int team = GetClientTeam(client);
+
+	int[] enemies = new int[MaxClients];
+	int[] allies = new int[MaxClients];
+	int enemyCount, allyCount;
+	for(int target = 1; target <= MaxClients; target++)
+	{
+		if(IsClientInGame(target))
 		{
-			if(IsClientInGame(target))
+			if(team == GetClientTeam(target))
 			{
-				if(team == GetClientTeam(target))
+				if(reactionAlly[0] && IsPlayerAlive(target))
 				{
-					if(reactionAlly[0] && IsPlayerAlive(target))
-					{
-						SetVariantString(reactionAlly);
-						AcceptEntityInput(target, "SpeakResponseConcept");
-					}
-
-					allies[allyCount++] = target;
+					SetVariantString(reactionAlly);
+					AcceptEntityInput(target, "SpeakResponseConcept");
 				}
-				else
+
+				allies[allyCount++] = target;
+			}
+			else
+			{
+				if(reactionEnemy[0] && IsPlayerAlive(target))
 				{
-					if(reactionEnemy[0] && IsPlayerAlive(target))
-					{
-						SetVariantString(reactionEnemy);
-						AcceptEntityInput(target, "SpeakResponseConcept");
-					}
-
-					enemies[enemyCount++] = target;
+					SetVariantString(reactionEnemy);
+					AcceptEntityInput(target, "SpeakResponseConcept");
 				}
+
+				enemies[enemyCount++] = target;
 			}
 		}
+	}
 
-		if(announcerAlly[0] && allyCount)
-			FF2R_EmitBossSound(allies, allyCount, announcerAlly, client, _, _, _, _, _, 1.0);
+	if(announcerAlly[0] && allyCount)
+		FF2R_EmitBossSound(allies, allyCount, announcerAlly, client, _, _, _, _, _, 1.0);
 
-		if(announcerEnemy[0] && enemyCount)
-			FF2R_EmitBossSound(enemies, enemyCount, announcerEnemy, client, _, _, _, _, _, 1.0);
+	if(announcerEnemy[0] && enemyCount)
+		FF2R_EmitBossSound(enemies, enemyCount, announcerEnemy, client, _, _, _, _, _, 1.0);
+}
+
+void Rage_Summon(int client, AbilityData cfg)
+{
+	
+}
+
+static void SummonAsCfg(int[] clients, int amount, const float pos[3], const float ang[3], int team, ConfigData cfg)
+{
+	for(int i; i < amount; i++)
+	{
+		if(MinionLastTeam[clients[i]] == -1)
+			MinionLastTeam[clients[i]] = GetClientTeam(clients[i]);
+		
+		FF2R_CreateBoss(clients[i], cfg, team);
+		MinionOwner[clients[i]] = owner;
+		
+		FF2R_SetClientMinion(clients[i], true);
+		
+		TF2_RespawnPlayer(clients[i]);
+		SetEntProp(clients[i], Prop_Send, "m_bDucked", true);
+		SetEntityFlags(clients[i], GetEntityFlags(clients[i]) | FL_DUCKING);
+		TeleportEntity(clients[i], pos, ang, {0.0, 0.0, 0.0});
+		
+		MinionIdle[clients[i]] = true;
+		TF2_AddCondition(clients[i], TFCond_HalloweenKartNoTurn, 1.0);
+		TF2_AddCondition(clients[i], TFCond_DisguisedAsDispenser, 20.0);
+		TF2_AddCondition(clients[i], TFCond_UberchargedOnTakeDamage, 20.0);
+		TF2_AddCondition(clients[i], TFCond_MegaHeal, 15.0);
+		
+		if(owner > 0)
+			SDKHook(clients[i], SDKHook_OnTakeDamage, MinionTakeDamage);
+	}
+}
+
+public Action MinionTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+{
+	if(MinionIdle[victim])
+	{
+		if(attacker > MaxClients && damage > 10.0)
+		{
+			if(MinionOwner[victim] > 0)
+			{
+				static const float vel[] = {90.0, 0.0, 0.0};
+				
+				float pos[3];
+				GetEntPropVector(MinionOwner[victim], Prop_Send, "m_vecOrigin", pos);
+				TeleportEntity(victim, pos, _, vel);
+				return Plugin_Handled;
+			}
+		}
+	}
+	else
+	{
+		SDKUnhook(victim, SDKHook_OnTakeDamage, CloneTakeDamage);
+	}
+	return Plugin_Continue;
+}
+
+public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float vel[3], const float angles[3])
+{
+	if(MinionIdle[client] && buttons && !TF2_IsPlayerInCondition(client, TFCond_HalloweenKartNoTurn))
+	{
+		TF2_RemoveCondition(client, TFCond_DisguisedAsDispenser);
+		TF2_RemoveCondition(client, TFCond_UberchargedOnTakeDamage);
+		TF2_RemoveCondition(client, TFCond_MegaHeal);
+		MinionIdle[client] = false;
+	}
+}
+
+public void OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
+{
+	int userid = event.GetInt("userid");
+	int victim = GetClientOfUserId(userid);
+	if(victim)
+	{
+		if(MinionOwner[victim])
+		{
+			MinionOwner[victim] = 0;
+			FF2R_CreateBoss(victim, null);
+			ChangeClientTeam(victim, MinionLastTeam[victim]);
+			MinionLastTeam[victim] = -1;
+		}
+		
+		if(MinionIdle[victim])
+		{
+			MinionBlacklist[victim] = true;
+			MinionIdle[victim] = false;
+		}
 	}
 }
 
