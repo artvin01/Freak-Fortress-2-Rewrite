@@ -20,6 +20,7 @@ static bool Waiting;
 static float HealingFor;
 static int WinnerOverride;
 static int PointUnlock;
+static Handle BackupTimer;
 static Handle TeamSyncHud[TFTeam_MAX];
 static Handle HudTimer[TFTeam_MAX];
 static bool HasBoss[TFTeam_MAX];
@@ -32,9 +33,92 @@ void Gamemode_PluginStart()
 	}
 }
 
+void Gamemode_PluginEnd()
+{
+	if(Enabled && GameRules_GetProp("m_bInWaitingForPlayers", 1))
+	{
+		ServerCommand("mp_waitingforplayers_cancel 1");
+		TF2_OnWaitingForPlayersEnd();
+	}
+}
+
+void Gamemode_MapInit()
+{
+	char mapname[64];
+	GetCurrentMap(mapname, sizeof(mapname));
+	if(Configs_MapIsGamemode(mapname))
+	{
+		bool addMaster;
+		char buffer[64];
+		char pointName[64] = "_vsh_cpoint";
+
+		int length = EntityLump.Length();
+		for(int i; i < length; i++)
+		{
+			EntityLumpEntry entry = EntityLump.Get(i);
+			
+			int classname = entry.FindKey("classname");
+			if(classname != -1)
+			{
+				int index = entry.FindKey("vscripts");
+				if(index != -1)
+				{
+					entry.Get(index, _, _, buffer, sizeof(buffer));
+					if(StrEqual(buffer, "vssaxtonhale/vsh.nut", false))
+					{
+						entry.Update(index, NULL_STRING, "");
+						PrintToServer("Found VScripts");
+
+						entry.Update(classname, NULL_STRING, "tf_logic_arena");
+
+						entry.Append("OnArenaRoundStart", "vsh_setup*,Open,,0,-1");
+						entry.Append("OnArenaRoundStart", "vsh_setup*,Trigger,,0,-1");
+						entry.Append("OnCapEnabled", "_vsh_cmaster,FireUser1,,0,-1");
+
+						addMaster = true;
+					}
+				}
+				
+				entry.Get(classname, _, _, buffer, sizeof(buffer));
+				if(StrEqual(buffer, "team_control_point", false))
+				{
+					index = entry.FindKey("targetname");
+					if(index == -1)
+					{
+						entry.Append("targetname", pointName);
+					}
+					else
+					{
+						entry.Get(index, _, _, pointName, sizeof(pointName));
+					}
+				}
+			}
+
+			delete entry;
+		}
+
+		if(addMaster)
+		{
+			EntityLumpEntry entry = EntityLump.Get(EntityLump.Append());
+
+			entry.Append("classname", "team_control_point_master");
+			entry.Append("targetname", "_vsh_cmaster");
+			entry.Append("custom_position_x", "-1");
+			entry.Append("custom_position_y", "-1");
+
+			FormatEx(buffer, sizeof(buffer), "%s,SetLocked,0,0,-1", pointName);
+			entry.Append("OnUser1", buffer);
+
+			FormatEx(buffer, sizeof(buffer), "%s,ShowModel,0,0,-1", pointName);
+			entry.Append("OnUser1", buffer);
+
+			delete entry;
+		}
+	}
+}
+
 void Gamemode_MapStart()
 {
-	//TODO: If a round as been played before, Waiting for Players will never end - Late loading without players on breaks FF2 currently
 	RoundStatus = -1;
 	Waiting = true;
 	for(int i = 1; i <= MaxClients; i++)
@@ -45,6 +129,11 @@ void Gamemode_MapStart()
 			break;
 		}
 	}
+}
+
+void Gamemode_MapEnd()
+{
+	delete BackupTimer;
 }
 
 void Gamemode_RoundSetup()
@@ -211,11 +300,14 @@ void Gamemode_RoundSetup()
 
 public void TF2_OnWaitingForPlayersStart()
 {
-	if(Enabled && GameRules_GetProp("m_bInWaitingForPlayers", 1))
+	if(Enabled && GameRules_GetProp("m_bInWaitingForPlayers", 1))	// Yes, m_bInWaitingForPlayers is needed here
 	{
 		Waiting = false;
 		Cvar[Tournament].BoolValue = false;
 		CreateTimer(4.0, Gamemode_TimerRespawn, _, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+
+		delete BackupTimer;
+		BackupTimer = CreateTimer(Cvar[WaitingTime].FloatValue + 5.0, Gamemode_BackupWaiting);
 	}
 }
 
@@ -240,20 +332,34 @@ public Action Gamemode_TimerRespawn(Handle timer)
 	return Plugin_Continue;
 }
 
+public Action Gamemode_BackupWaiting(Handle timer)
+{
+	// There is some cases where waiting for players could get stuck and fail to restart the round
+	// Here's the duct tape fix until I can find a way to properly patch it
+	if(GameRules_GetProp("m_bInWaitingForPlayers", 1))
+	{
+		ServerCommand("mp_waitingforplayers_cancel 1");
+		TF2_OnWaitingForPlayersEnd();
+	}
+	
+	BackupTimer = null;
+	return Plugin_Continue;
+}
+
 public Action Gamemode_IntroTimer(Handle timer)
 {
 	for(int client = 1; client <= MaxClients; client++)
 	{
 		if(IsClientInGame(client))
 		{
-			if(!Client(client).IsBoss || !ForwardOld_OnMusicPerBoss(client) || !Bosses_PlaySoundToClient(client, client, "sound_begin", _, _, _, _, _, 2.0))
+			if(!Client(client).IsBoss || !ForwardOld_OnMusicPerBoss(client) || (!Bosses_PlaySoundToClient(client, client, "sound_intro", _, _, _, _, _, 2.0) && !Bosses_PlaySoundToClient(client, client, "sound_begin", _, _, _, _, _, 2.0)))
 			{
 				int team = GetClientTeam(client);
 				int i;
 				for(; i < MaxClients; i++)
 				{
 					int boss = FindClientOfBossIndex(i);
-					if(boss != -1 && GetClientTeam(boss) != team && Bosses_PlaySoundToClient(boss, client, "sound_begin", _, _, _, _, _, 2.0))
+					if(boss != -1 && GetClientTeam(boss) != team && (Bosses_PlaySoundToClient(boss, client, "sound_intro", _, _, _, _, _, 2.0) || Bosses_PlaySoundToClient(boss, client, "sound_begin", _, _, _, _, _, 2.0)))
 						break;
 				}
 				
@@ -261,7 +367,10 @@ public Action Gamemode_IntroTimer(Handle timer)
 				{
 					int boss = FindClientOfBossIndex(0);
 					if(boss != -1)
-						Bosses_PlaySoundToClient(boss, client, "sound_begin", _, _, _, _, _, 2.0);
+					{
+						if(!Bosses_PlaySoundToClient(boss, client, "sound_intro", _, _, _, _, _, 2.0))
+							Bosses_PlaySoundToClient(boss, client, "sound_begin", _, _, _, _, _, 2.0);
+					}
 				}
 			}
 		}

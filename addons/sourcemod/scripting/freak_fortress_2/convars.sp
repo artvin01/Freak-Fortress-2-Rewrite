@@ -44,7 +44,6 @@ void ConVar_PluginStart()
 	Cvar[SoundType] = CreateConVar("ff2_boss_globalsounds", "0", "If default sounds are globally heard", _, true, 0.0, true, 1.0);
 	Cvar[DisguiseModels] = CreateConVar("ff2_game_disguises", "1", "If to use rome vision to apply custom models to disguises.\nCan't modifiy cvar value while players are active.", _, true, 0.0, true, 1.0);
 	Cvar[PlayerGlow] = CreateConVar("ff2_game_last_glow", "0", "If the final mercenary of a team will be highlighted.", _, true, 0.0, true, 1.0);
-	Cvar[BossSapper] = CreateConVar("ff2_boss_sapper", "1", "If sappers can apply a slow on a boss similar to MvM.", _, true, 0.0, true, 1.0);
 	Cvar[PrefSpecial] = CreateConVar("ff2_pref_special", "0.0", "If non-zero, difficulties will be randomly applied onto a boss based on the chance set.", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	Cvar[Telefrags] = CreateConVar("ff2_game_telefrag", "5000", "How much damage telefrags do on bosses");
 	Cvar[SubpluginFolder] = CreateConVar("ff2_plugin_subplugins", "freaks", "Folder to load/unload when bosses are at play relative to the plugins folder.");
@@ -61,6 +60,7 @@ void ConVar_PluginStart()
 	Cvar[PreroundTime] = FindConVar("tf_arena_preround_time");
 	//Cvar[BonusRoundTime] = FindConVar("mp_bonusroundtime");
 	Cvar[Tournament] = FindConVar("mp_tournament");
+	Cvar[WaitingTime] = FindConVar("mp_waitingforplayers_time");
 	
 	CvarList = new ArrayList(sizeof(CvarInfo));
 	
@@ -161,7 +161,19 @@ static void ConVar_Add(const char[] name, const char[] value, bool enforce = tru
 	if(CvarHooked)
 	{
 		info.cvar.GetString(info.defaul, sizeof(info.defaul));
-		info.cvar.SetString(info.value);
+
+		bool setValue = true;
+		if(!info.enforce)
+		{
+			char buffer[sizeof(info.defaul)];
+			info.cvar.GetDefault(buffer, sizeof(buffer));
+			if(!StrEqual(buffer, info.defaul))
+				setValue = false;
+		}
+
+		if(setValue)
+			info.cvar.SetString(info.value);
+		
 		info.cvar.AddChangeHook(ConVar_OnChanged);
 	}
 
@@ -210,7 +222,18 @@ void ConVar_Enable()
 			info.cvar.GetString(info.defaul, sizeof(info.defaul));
 			CvarList.SetArray(i, info);
 
-			info.cvar.SetString(info.value);
+			bool setValue = true;
+			if(!info.enforce)
+			{
+				char buffer[sizeof(info.defaul)];
+				info.cvar.GetDefault(buffer, sizeof(buffer));
+				if(!StrEqual(buffer, info.defaul))
+					setValue = false;
+			}
+
+			if(setValue)
+				info.cvar.SetString(info.value);
+			
 			info.cvar.AddChangeHook(ConVar_OnChanged);
 		}
 
@@ -248,20 +271,11 @@ public void ConVar_OnChanged(ConVar cvar, const char[] oldValue, const char[] ne
 
 		if(!StrEqual(info.value, newValue))
 		{
+			strcopy(info.defaul, sizeof(info.defaul), newValue);
+			CvarList.SetArray(index, info);
+
 			if(info.enforce)
-			{
-				strcopy(info.defaul, sizeof(info.defaul), newValue);
-				CvarList.SetArray(index, info);
 				info.cvar.SetString(info.value);
-			}
-			else
-			{
-				char buffer[64];
-				cvar.GetName(buffer, sizeof(buffer));
-				Debug("Removed ConVar %s", buffer);
-				info.cvar.RemoveChangeHook(ConVar_OnChanged);
-				CvarList.Erase(index);
-			}
 		}
 	}
 }

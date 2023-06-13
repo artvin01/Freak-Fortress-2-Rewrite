@@ -770,16 +770,7 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 	{
 		Address address = TF2Attrib_GetByDefIndex(client, 252);
 		if(address == Address_Null || TF2Attrib_GetValue(address) == 0.0)
-		{
-			if(AnchorLastAttrib[client] != 1.0)
-			{
-				TF2Attrib_SetByDefIndex(client, 252, AnchorLastAttrib[client]);
-			}
-			else if(address != Address_Null)
-			{
-				TF2Attrib_RemoveByDefIndex(client, 252);
-			}
-		}
+			TF2Attrib_SetByDefIndex(client, 252, AnchorLastAttrib[client]);
 		
 		AnchorLastAttrib[client] = -69.42;
 	}
@@ -2552,7 +2543,7 @@ void Rage_MatrixAttack(int client, ConfigData cfg, const char[] ability)
 	if(timescale <= 0.0)
 		timescale = 1.0;
 	
-	float duration = GetFormula(cfg, "duration", alive, 2.0) / timescale;
+	float duration = GetFormula(cfg, "duration", alive, 2.0) * timescale;
 	
 	char particle[48];
 	if(cfg.GetString("particle", particle, sizeof(particle), team % 2 ? "scout_dodge_blue" : "scout_dodge_red"))
@@ -2774,7 +2765,7 @@ public Action Timer_EnableBuilding(Handle timer, int ref)
 {
 	int entity = EntRefToEntIndex(ref);
 	if(entity != INVALID_ENT_REFERENCE)
-		SetEntProp(entity, Prop_Send, "m_bDisabled", true);
+		SetEntProp(entity, Prop_Send, "m_bDisabled", false);
 	
 	return Plugin_Continue;
 }

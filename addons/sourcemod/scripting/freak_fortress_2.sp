@@ -184,7 +184,6 @@ enum
 	BossCrits,
 	BossHealing,
 	BossKnockback,
-	BossSapper,
 	
 	BossVsBoss,
 	SpecTeam,
@@ -207,6 +206,7 @@ enum
 	PreroundTime,
 	//BonusRoundTime,
 	Tournament,
+	WaitingTime,
 	
 	Cvar_MAX
 }
@@ -318,6 +318,11 @@ public void OnAllPluginsLoaded()
 	Configs_AllPluginsLoaded();
 }
 
+public void OnMapInit()
+{
+	Gamemode_MapInit();
+}
+
 public void OnMapStart()
 {
 	Configs_MapStart();
@@ -329,7 +334,7 @@ public void OnConfigsExecuted()
 {
 	char mapname[64];
 	GetCurrentMap(mapname, sizeof(mapname));
-	if(Configs_CheckMap(mapname))
+	if(Configs_SetMap(mapname))
 	{
 		Charset = Cvar[NextCharset].IntValue;
 	}
@@ -347,6 +352,7 @@ public void OnConfigsExecuted()
 public void OnMapEnd()
 {
 	Bosses_MapEnd();
+	Gamemode_MapEnd();
 	Preference_MapEnd();
 }
 
@@ -356,6 +362,7 @@ public void OnPluginEnd()
 	ConVar_Disable();
 	Database_PluginEnd();
 	DHook_PluginEnd();
+	Gamemode_PluginEnd();
 	Music_PlaySongToAll();
 }
 
